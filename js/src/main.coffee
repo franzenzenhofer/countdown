@@ -181,7 +181,7 @@ init = () ->
 init()
 #canvasPosition = getElementPosition(document.getElementById("canvas"))
 mouse = MouseAndTouch(document, downHandler, upHandler, moveHandler)
-
+ 
 ###
 	fixDef = new b2FixtureDef()
 	fixDef.density = 1.0
