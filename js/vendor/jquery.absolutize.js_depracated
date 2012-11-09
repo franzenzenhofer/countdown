@@ -1,0 +1,40 @@
+jQuery.fn.absolutize = function()
+{
+  return this.each(function()
+  {
+    var element = jQuery(this);
+    if (element.css('position') == 'absolute')
+    {
+      return element;
+    }
+    console.log($("body").position())
+    //var offsets = element.position();
+    //console.log(element.offset());
+    //console.log(offsets)
+    var offsets = element.position();
+    console.log(element)
+    console.log(offsets)
+    var top = offsets.top;
+    var left = offsets.left;
+    //var width = element[0].clientWidth;
+    //var width = element.width();
+    //var height = element[0].clientHeight;
+    //var height = element.height();
+
+    //element._originalLeft = left - parseFloat(element.css("left") || 0);
+    //element._originalTop = top - parseFloat(element.css("top") || 0);
+    //element._originalWidth = element.css("width");
+    //element._originalHeight = element.css("height");
+
+    console.log(top);
+    alert('change');
+    //element.css("position", "absolute");
+    element.css(element.position());
+    //element.css("top", top + 'px');
+    //element.css("left", left + 'px');
+    //element.css("width", width + 'px');
+    //element.css("height", height + 'px');
+    return element;
+
+  });
+}

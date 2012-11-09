@@ -10,9 +10,41 @@ b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 b2DebugDraw = Box2D.Dynamics.b2DebugDraw
 b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef
-b2MouseJointDef =  Box2D.Dynamics.Joints.b2MouseJointDef;
+b2MouseJointDef =  Box2D.Dynamics.Joints.b2MouseJointDef
+$ = jQuery
 
+#HW accelorate map
+#hw={
+#    'position': 'absolute',
+#    'left': 0,
+#    'top': 0,
+#    '-webkit-transform': 'translate3d(0,0,1px)',
+#    '-o-transform': 'translate3d(0,0,1px)',
+#    '-moz-transform': 'translate3d(0,0,1px)',
+#    '-ms-transform': 'translate3d(0,0,1px)',
+#    'transform': 'translate3d(0,0,1px)',
+#    '-webkit-perspective': 1000, 
+#    '-webkit-backface-visibility': 'hidden',
+#    '-webkit-transition-property': '-webkit-transform',
+#    '-webkit-transition-duration': 0.1,
+#    '-o-transition-property': '-o-transform',
+#    '-o-transition-duration': 0.1,
+#    '-moz-transition-property': '-moz-transform',
+#    '-moz-transition-duration': 0.1,
+#    'transition-property': '-transform',
+#    'transition-duration': 0.1
+#  }
+hw = {
+  '-webkit-transform': 'translateZ(0)'
+  '-moz-transform': 'translateZ(0)'
+  '-o-transform': 'translateZ(0)'
+  'transform': 'translateZ(0)'  
+}
+
+S_T_A_R_T_E_D = false
 world = {}
+x_velocity = 0
+y_velocity = 0
 SCALE = 30
 D2R = Math.PI / 180
 R2D = 180 / Math.PI
@@ -35,10 +67,12 @@ upHandler = (x, y) ->
   mouseX = `undefined`
   mouseY = `undefined`
 moveHandler = (x, y) ->
+  #console.log(canvasPosition.x)
+  #console.log(canvasPosition.y)
   #mouseX = (x - canvasPosition.x) / 30
   #mouseY = (y - canvasPosition.y) / 30
   mouseX = x / 30
-  mouseY = x / 30
+  mouseY = y / 30
 getBodyAtMouse = ->
   mousePVec = new b2Vec2(mouseX, mouseY)
   aabb = new b2AABB()
@@ -90,14 +124,17 @@ updateMouseDrag = ->
 
 
 	
-createDOMObjects = () ->
+createDOMObjects = (jquery_selector) ->
   #iterate all div elements and create them in the Box2D system
-  $("#container div").each (a, b) ->
+  #$("#container div").each (a, b) ->
+  $(jquery_selector).each (a, b) -> 
+    console.log(a)
+    console.log(b)
     domObj = $(b)
     domPos = $(b).position()
     width = domObj.width() / 2
     height = domObj.height() / 2
-    x = (domPos.left) + width
+    x = (domPos.left)  + width
     y = (domPos.top) + height
     body = createBox(x, y, width, height)
     body.m_userData = {
@@ -107,6 +144,7 @@ createDOMObjects = () ->
       }
 
     #Reset DOM object position for use with CSS3 positioning
+    #domObj.absolutize()#.css({left: "0px",top: "0px"})
     domObj.css({left: "0px",top: "0px"})
 
     return true
@@ -152,35 +190,80 @@ drawDOMObjects = ->
     b = b.m_next
 
 update = ->
-  
+
   updateMouseDrag()
   #frame-rate
   #velocity iterations
   world.Step 1 / 60, 10, 10 #position iterations
   drawDOMObjects()
   world.ClearForces()
+  #update()
+  requestAnimationFrame(update);
 
 
-init = () ->
-	world = new b2World(
-		new b2Vec2(0,10),
-		true
-		)
+init = (jquery_selector) ->
+  S_T_A_R_T_E_D = true
+  world = new b2World(
+    new b2Vec2(x_velocity,y_velocity),
+    true
+    )
+  createDOMObjects($(jquery_selector).bodysnatch())
+  w = $(window).width(); 
+  h = $(window).height();
+  #top border box
+  createBox(0, -1 , $(window).width(), 1, true);
+  #right hand side box
+  createBox($(window).width()+1, 0 , 1, $(window.document).height(), true);
+  #left hand side border
+  createBox(-1, 0 , 1, $(window.document).height(), true);
+  console.log($(window.document).height())
+  console.log($(window).height())
+  #bottom box
+  createBox(0, $(window.document).height()+1, $(window).width(), 1, true);
+  mouse = MouseAndTouch(document, downHandler, upHandler, moveHandler)
 
-	createDOMObjects()
-	w = $(window).width(); 
-	h = $(window).height();
-	
-	createBox(0, h , w, 5, true);
-	createBox(0,0,5,h, true);
-	createBox(w,0,5,h, true);
-
-	interval = setInterval(update,1000/60);
-	update();
-
-init()
+  #trigger hardware acclearation
+  #$('body').css(hw);
+  
+  update();
+  
+#init("#container div, img")
+#init("h1")
 #canvasPosition = getElementPosition(document.getElementById("canvas"))
-mouse = MouseAndTouch(document, downHandler, upHandler, moveHandler)
+
+$.fn.extend
+  physics: (options) ->
+    self = $.fn.physics
+    opts = $.extend {}, self.default_options, options
+    x_velocity = opts['x-velocity']
+    y_velocity = opts['y-veloctiy']
+    if S_T_A_R_T_E_D is false
+      console.log('lets start')
+      init(@selector)
+    else
+      console.log('already started')
+      
+      createDOMObjects($(@selector).bodysnatch())
+
+    $(this).each (i, el) ->
+      self.init el, opts
+      self.log el if opts.log
+
+$.extend $.fn.physics,
+  default_options:
+    'x-velocity': 0
+    'y-velocity': 0
+    log: true
+  
+  init: (el, opts) ->
+    #this.color el, opts
+  
+  #color: (el, opts) ->
+  #  $(el).css('color', opts.color)
+  
+  log: (msg) ->
+    console.log msg
+
  
 ###
 	fixDef = new b2FixtureDef()
