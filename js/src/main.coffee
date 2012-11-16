@@ -13,27 +13,7 @@ b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef
 b2MouseJointDef =  Box2D.Dynamics.Joints.b2MouseJointDef
 $ = jQuery
 
-#HW accelorate map
-#hw={
-#    'position': 'absolute',
-#    'left': 0,
-#    'top': 0,
-#    '-webkit-transform': 'translate3d(0,0,1px)',
-#    '-o-transform': 'translate3d(0,0,1px)',
-#    '-moz-transform': 'translate3d(0,0,1px)',
-#    '-ms-transform': 'translate3d(0,0,1px)',
-#    'transform': 'translate3d(0,0,1px)',
-#    '-webkit-perspective': 1000, 
-#    '-webkit-backface-visibility': 'hidden',
-#    '-webkit-transition-property': '-webkit-transform',
-#    '-webkit-transition-duration': 0.1,
-#    '-o-transition-property': '-o-transform',
-#    '-o-transition-duration': 0.1,
-#    '-moz-transition-property': '-moz-transform',
-#    '-moz-transition-duration': 0.1,
-#    'transition-property': '-transform',
-#    'transition-duration': 0.1
-#  }
+
 hw = {
   '-webkit-transform': 'translateZ(0)'
   '-moz-transform': 'translateZ(0)'
@@ -50,11 +30,17 @@ D2R = Math.PI / 180
 R2D = 180 / Math.PI
 PI2 = Math.PI*2
 interval = {}
+default_static = false
+default_density = 1.5
+default_friction = 0.3
+default_restitution = 0.4
+default_shape = 'box'
+#static_ = default_static, density = default_density, restitution = default_restitution, friction=default_friction 
 
-mouseX = undefined
-mouseY = undefined
+mouseX = 0
+mouseY = 0
 mousePVec = undefined
-isMouseDown = undefined
+isMouseDown = false
 selectedBody = undefined
 mouseJoint = undefined
 
@@ -73,6 +59,7 @@ moveHandler = (x, y) ->
   #mouseY = (y - canvasPosition.y) / 30
   mouseX = x / 30
   mouseY = y / 30
+
 getBodyAtMouse = ->
   mousePVec = new b2Vec2(mouseX, mouseY)
   aabb = new b2AABB()
@@ -81,7 +68,7 @@ getBodyAtMouse = ->
   
   # Query the world for overlapping shapes.
   selectedBody = null
-  world.QueryAABB getBodyCB, aabb
+  world.QueryAABB getBodyCB, aabb 
   selectedBody
 getBodyCB = (fixture) ->
   unless fixture.GetBody().GetType() is b2Body.b2_staticBody
@@ -123,20 +110,53 @@ updateMouseDrag = ->
 
 
 
-	
-createDOMObjects = (jquery_selector) ->
+  
+createDOMObjects = (jquery_selector, shape = default_shape, static_ = default_static, density = default_density, restitution = default_restitution, friction=default_friction) ->
   #iterate all div elements and create them in the Box2D system
   #$("#container div").each (a, b) ->
   $(jquery_selector).each (a, b) -> 
+    #console.log(a)
+    #console.log(b)
+    domObj = $(b)
+    full_width = domObj.width()
+    full_height = domObj.height()
+    if (not full_width or not full_height) and (b[0] and (b[0].src isnt ''))  
+      console.log('attching event handler to an elment that isnt quite ready yet')
+      console.log(shape)
+      domObj.on('load', ()->createDOMObjects(@, shape, static_, density, restitution, friction))
+      return true
+
+    console.log('in create DOM objects')
     console.log(a)
     console.log(b)
-    domObj = $(b)
+    
     domPos = $(b).position()
-    width = domObj.width() / 2
-    height = domObj.height() / 2
+    width = full_width / 2
+    height = full_height / 2
     x = (domPos.left)  + width
     y = (domPos.top) + height
-    body = createBox(x, y, width, height)
+
+    #element attributes with box2d- overwrite the other argument
+
+    #if domObj.attr('box2d-shape')
+    #  make_shape = domObj.attr('box2d-shape')
+    #else
+    #  make_shape = shape
+    make_shape = (if domObj.attr('box2d-shape') then domObj.attr('box2d-shape') else shape)
+    #TODO TEST
+    make_density = (if domObj.attr('box2d-density') then domObj.attr('box2d-density') else density)
+    #TODO TEST
+    make_restitution = (if domObj.attr('box2d-restitution') then domObj.attr('box2d-restitution') else restitution)
+    #TODO TEST
+    make_friction = (if domObj.attr('box2d-friction ') then domObj.attr('box2d-friction') else friction)
+
+
+    if make_shape and make_shape isnt 'circle'
+      body = createBox(x, y, width, height, static_, make_density, make_restitution, make_friction )
+    else
+      r = (if width > height then width else height)
+      console.log('radius '+r)
+      body = createCircle(x, y, r, static_, make_density, make_restitution, make_friction )
     body.m_userData = {
       domObj: domObj
       width: width
@@ -149,18 +169,57 @@ createDOMObjects = (jquery_selector) ->
 
     return true
 
-createBox = (x, y, width, height, static_) ->
+createBox = (x, y, width, height, static_ = default_static, density = default_density, restitution = default_restitution, friction=default_friction ) ->
   bodyDef = new b2BodyDef
   bodyDef.type = (if static_ then b2Body.b2_staticBody else b2Body.b2_dynamicBody)
   bodyDef.position.x = x / SCALE
   bodyDef.position.y = y / SCALE
   fixDef = new b2FixtureDef
-  fixDef.density = 1.5
-  fixDef.friction = 0.3
-  fixDef.restitution = 0.4
+  #fixDef.density = 1.5
+  #fixDef.friction = 0.3
+  #fixDef.restitution = 0.4
+  fixDef.density = density
+  fixDef.friction = friction
+  fixDef.restitution = restitution
+  console.log('now restitution')
+  console.log(restitution)
+  if restitution is 0 then console.log('HIHO')
+  #console.log(fixDef.friction)
   fixDef.shape = new b2PolygonShape
   fixDef.shape.SetAsBox width / SCALE, height / SCALE
   return world.CreateBody(bodyDef).CreateFixture fixDef
+
+createCircle = (x, y, r, static_ = default_static, density = default_density, restitution = default_restitution, friction=default_friction ) ->
+  console.log('in create CIRCLE')
+  bodyDef = new b2BodyDef
+  bodyDef.type = (if static_ then b2Body.b2_staticBody else b2Body.b2_dynamicBody)
+  bodyDef.position.x = x / SCALE
+  bodyDef.position.y = y / SCALE
+  fixDef = new b2FixtureDef
+  fixDef.density = density
+  fixDef.friction = friction 
+  fixDef.restitution = restitution
+  #fixDef.shape = new b2PolygonShape
+  #fixDef.shape.SetAsBox width / SCALE, height / SCALE
+  fixDef.shape = new b2CircleShape(r / SCALE);
+  return world.CreateBody(bodyDef).CreateFixture fixDef
+
+###
+
+fixDef = new b2FixtureDef;
+      fixDef.density = 1.0;
+      fixDef.friction = 0.5;
+      fixDef.restitution = 0.2;
+
+      bodyDef = new b2BodyDef;
+      bodyDef.type = b2Body.b2_dynamicBody;
+      fixDef.shape = new b2CircleShape(10 / SCALE);
+
+      bodyDef.position.x = 100 / SCALE;
+      bodyDef.position.y = 10 / SCALE;
+      world.CreateBody(bodyDef).CreateFixture(fixDef);
+
+###
 
 drawDOMObjects = ->
   i = 0
@@ -201,25 +260,25 @@ update = ->
   requestAnimationFrame(update);
 
 
-init = (jquery_selector) ->
+init = (jquery_selector, density = default_density, restitution = default_restitution, friction=default_friction) ->
   S_T_A_R_T_E_D = true
   world = new b2World(
     new b2Vec2(x_velocity,y_velocity),
     true
     )
-  createDOMObjects($(jquery_selector).bodysnatch())
+  #createDOMObjects($(jquery_selector).bodysnatch())
   w = $(window).width(); 
   h = $(window).height();
   #top border box
-  createBox(0, -1 , $(window).width(), 1, true);
+  createBox(0, -1 , $(window).width(), 1, true, density, restitution, friction);
   #right hand side box
-  createBox($(window).width()+1, 0 , 1, $(window.document).height(), true);
+  createBox($(window).width()+1, 0 , 1, $(window.document).height(), true, density, restitution, friction);
   #left hand side border
-  createBox(-1, 0 , 1, $(window.document).height(), true);
+  createBox(-1, 0 , 1, $(window.document).height(), true, density, restitution, friction);
   console.log($(window.document).height())
   console.log($(window).height())
   #bottom box
-  createBox(0, $(window.document).height()+1, $(window).width(), 1, true);
+  createBox(0, $(window.document).height()+1, $(window).width(), 1, true, density, restitution, friction);
   mouse = MouseAndTouch(document, downHandler, upHandler, moveHandler)
 
   #trigger hardware acclearation
@@ -236,62 +295,33 @@ $.fn.extend
     self = $.fn.physics
     opts = $.extend {}, self.default_options, options
     x_velocity = opts['x-velocity']
-    y_velocity = opts['y-veloctiy']
+    y_velocity = opts['y-velocity']
+    density = opts['density']
+    restitution = opts['restitution']
+    friction= opts['friction']
+    shape = opts['shape']
+    static_ = opts['static']
+    console.log(opts)
     if S_T_A_R_T_E_D is false
-      console.log('lets start')
-      init(@selector)
-    else
-      console.log('already started')
-      
-      createDOMObjects($(@selector).bodysnatch())
-
-    $(this).each (i, el) ->
-      self.init el, opts
-      self.log el if opts.log
+      init(@selector, density, restitution, friction)
+    absolute_elements = $(@selector).bodysnatch()
+    createDOMObjects(absolute_elements, shape, static_, density, restitution, friction)
+    return $(absolute_elements)
+    #$(this).each (i, el) ->
+    #  self.init el, opts
+    #  self.log el if opts.log
 
 $.extend $.fn.physics,
   default_options:
     'x-velocity': 0
     'y-velocity': 0
-    log: true
-  
-  init: (el, opts) ->
-    #this.color el, opts
-  
-  #color: (el, opts) ->
-  #  $(el).css('color', opts.color)
-  
-  log: (msg) ->
-    console.log msg
+    'density': default_density
+    'restitution': default_restitution
+    'friction': default_friction 
+    'static': default_static
+    'shape': default_shape
+    
+
 
  
-###
-	fixDef = new b2FixtureDef()
-	fixDef.density = 1.0
-	fixDef.friction = 0.5
-	fixDef.restitution = 0.2
 
-	bodyDef = new b2BodyDef()
-	bodyDef.type = b2Body.b2_staticBody
-	fixDef.shape = new b2PolygonShape()
-	fixDef.shape.SetAsBox(20, 2) 
-	bodyDef.position.Set(10, 400 / 30 + 1.8)
-	world.CreateBody(bodyDef).CreateFixture(fixDef)
-	bodyDef.position.Set(10, -1.8)
-	world.CreateBody(bodyDef).CreateFixture(fixDef)
-	fixDef.shape.SetAsBox(2, 14)
-	bodyDef.position.Set(-1.8, 13)
-	world.CreateBody(bodyDef).CreateFixture(fixDef)
-	bodyDef.position.Set(21.8, 13)
-	world.CreateBody(bodyDef).CreateFixture(fixDef)
-
-	bodyDef.type = b2Body.b2_dynamicBody;
-	for i in [0..10]
-		fixDef.shape = new b2PolygonShape;
-		fixDef.shape.SetAsBox(Math.random() + 0.1, Math.random() + 0.1)
-		bodyDef.position.x = Math.random() * 10
-		bodyDef.position.y = Math.random() * 10
-		world.CreateBody(bodyDef).CreateFixture(fixDef)
-
-	window.setInterval(update, 1000 / 60)
-###

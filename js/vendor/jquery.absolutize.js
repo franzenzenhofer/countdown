@@ -14,7 +14,7 @@
                             top: offset.top,
                             left: offset.left,
                             margin: 0,
-                            padding: 0
+                            //padding: 0
                         }
                     });
                 });
